@@ -1,0 +1,80 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ZephyrPHP\Database\Traits;
+
+use Doctrine\ORM\Mapping as ORM;
+
+/**
+ * SoftDeletes Trait - Adds soft delete functionality to entities
+ *
+ * When using this trait, entities are not permanently deleted from the database.
+ * Instead, a deletedAt timestamp is set.
+ */
+trait SoftDeletes
+{
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $deletedAt = null;
+
+    /**
+     * Get the deleted at timestamp
+     */
+    public function getDeletedAt(): ?\DateTimeInterface
+    {
+        return $this->deletedAt;
+    }
+
+    /**
+     * Set the deleted at timestamp
+     */
+    public function setDeletedAt(?\DateTimeInterface $deletedAt): self
+    {
+        $this->deletedAt = $deletedAt;
+        return $this;
+    }
+
+    /**
+     * Check if the entity is soft deleted
+     */
+    public function isDeleted(): bool
+    {
+        return $this->deletedAt !== null;
+    }
+
+    /**
+     * Check if the entity is not soft deleted (alias for trashed check)
+     */
+    public function isTrashed(): bool
+    {
+        return $this->isDeleted();
+    }
+
+    /**
+     * Soft delete the entity
+     */
+    public function softDelete(): self
+    {
+        $this->deletedAt = new \DateTime();
+        return $this;
+    }
+
+    /**
+     * Restore a soft deleted entity
+     */
+    public function restore(): self
+    {
+        $this->deletedAt = null;
+        return $this;
+    }
+
+    /**
+     * Force delete - permanently remove from database
+     * Note: This should be called alongside EntityManager::remove()
+     */
+    public function forceDelete(): void
+    {
+        // This method is a marker - actual deletion happens via EntityManager
+        // Usage: $entity->forceDelete(); $em->remove($entity); $em->flush();
+    }
+}

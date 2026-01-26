@@ -1,0 +1,97 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ZephyrPHP\Database;
+
+use Doctrine\DBAL\Connection as DBALConnection;
+use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Exception;
+
+class Connection
+{
+    private static ?Connection $instance = null;
+    private ?DBALConnection $connection = null;
+    private array $config = [];
+
+    public function __construct(array $config = [])
+    {
+        $this->config = array_merge($this->getDefaultConfig(), $config);
+    }
+
+    public static function getInstance(): self
+    {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    protected function getDefaultConfig(): array
+    {
+        return [
+            'driver' => $_ENV['DB_CONNECTION'] ?? 'pdo_mysql',
+            'host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
+            'port' => (int) ($_ENV['DB_PORT'] ?? 3306),
+            'dbname' => $_ENV['DB_DATABASE'] ?? 'zephyrphp',
+            'user' => $_ENV['DB_USERNAME'] ?? 'root',
+            'password' => $_ENV['DB_PASSWORD'] ?? '',
+            'charset' => $_ENV['DB_CHARSET'] ?? 'utf8mb4',
+        ];
+    }
+
+    public function connect(): DBALConnection
+    {
+        if ($this->connection !== null) {
+            return $this->connection;
+        }
+
+        try {
+            $this->connection = DriverManager::getConnection($this->config);
+        } catch (Exception $e) {
+            throw new \RuntimeException("Database connection failed: " . $e->getMessage(), 0, $e);
+        }
+
+        return $this->connection;
+    }
+
+    public function getConnection(): ?DBALConnection
+    {
+        return $this->connection ?? $this->connect();
+    }
+
+    public function disconnect(): void
+    {
+        if ($this->connection !== null) {
+            $this->connection->close();
+            $this->connection = null;
+        }
+    }
+
+    public function isConnected(): bool
+    {
+        return $this->connection !== null && $this->connection->isConnected();
+    }
+
+    public function reconnect(): DBALConnection
+    {
+        $this->disconnect();
+        return $this->connect();
+    }
+
+    public function getConfig(): array
+    {
+        return $this->config;
+    }
+
+    public function setConfig(array $config): self
+    {
+        $this->config = array_merge($this->config, $config);
+
+        if ($this->connection !== null) {
+            $this->reconnect();
+        }
+
+        return $this;
+    }
+}
