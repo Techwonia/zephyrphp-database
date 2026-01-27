@@ -130,6 +130,9 @@ class EntityGenerator
             }
         }
 
+        // Table attribute (just the name, constraints/indexes are separate attributes)
+        $attrs[] = '#[ORM\\Table(' . implode(', ', $tableOptions) . ')]';
+
         // Collect unique constraints from columns with unique: true
         // This generates named constraints like 'tablename_columnname_unique'
         // which is the industry standard and allows proper error message extraction
@@ -155,35 +158,26 @@ class EntityGenerator
             }
         }
 
-        // Generate UniqueConstraint attributes
-        if (!empty($uniqueConstraints)) {
-            $uniqueAttrs = [];
-            foreach ($uniqueConstraints as $name => $config) {
-                $cols = "columns: ['" . implode("', '", $config['columns']) . "']";
-                $uniqueAttrs[] = "new ORM\\UniqueConstraint(name: '{$name}', {$cols})";
-            }
-            $tableOptions[] = 'uniqueConstraints: [' . implode(', ', $uniqueAttrs) . ']';
+        // Generate UniqueConstraint as SEPARATE attributes (flat syntax required for Doctrine 2.x)
+        // The nested syntax inside #[Table] doesn't work properly with PHP 8 attributes
+        foreach ($uniqueConstraints as $name => $config) {
+            $cols = "'" . implode("', '", $config['columns']) . "'";
+            $attrs[] = "#[ORM\\UniqueConstraint(name: '{$name}', columns: [{$cols}])]";
         }
 
-        // Generate Index attributes (non-unique)
+        // Generate Index as SEPARATE attributes (non-unique)
         // Rename to follow naming convention: tablename_columnname_idx
         if (!empty($indexes)) {
-            $indexAttrs = [];
             foreach ($indexes as $name => $config) {
                 if (!$config['unique']) {
                     // Generate standardized index name
                     $colsStr = implode('_', $config['columns']);
                     $indexName = "{$tableName}_{$colsStr}_idx";
-                    $cols = "columns: ['" . implode("', '", $config['columns']) . "']";
-                    $indexAttrs[] = "new ORM\\Index(name: '{$indexName}', {$cols})";
+                    $cols = "'" . implode("', '", $config['columns']) . "'";
+                    $attrs[] = "#[ORM\\Index(name: '{$indexName}', columns: [{$cols}])]";
                 }
             }
-            if (!empty($indexAttrs)) {
-                $tableOptions[] = 'indexes: [' . implode(', ', $indexAttrs) . ']';
-            }
         }
-
-        $attrs[] = '#[ORM\\Table(' . implode(', ', $tableOptions) . ')]';
 
         // Add HasLifecycleCallbacks if needed
         if (!empty($this->blueprint->getLifecycleCallbacks()) || !$this->blueprint->getExtends()) {
