@@ -116,19 +116,33 @@ class EntityGenerator
         $tableName = $this->blueprint->getTable() ?: strtolower($this->blueprint->getName()) . 's';
         $tableOptions[] = "name: '{$tableName}'";
 
+        // Get explicit indexes from blueprint first
+        $indexes = $this->blueprint->getIndexes();
+
+        // Collect columns that have explicit unique indexes defined
+        // These take precedence over auto-generated constraints
+        $explicitUniqueColumns = [];
+        if (!empty($indexes)) {
+            foreach ($indexes as $name => $config) {
+                if ($config['unique'] && count($config['columns']) === 1) {
+                    $explicitUniqueColumns[] = $config['columns'][0];
+                }
+            }
+        }
+
         // Collect unique constraints from columns with unique: true
         // This generates named constraints like 'tablename_columnname_unique'
         // which is the industry standard and allows proper error message extraction
+        // Skip columns that have explicit unique indexes defined (avoid duplicates)
         $uniqueConstraints = [];
         foreach ($this->blueprint->getColumns() as $column) {
-            if ($column->isUnique()) {
+            if ($column->isUnique() && !in_array($column->getName(), $explicitUniqueColumns)) {
                 $constraintName = "{$tableName}_{$column->getName()}_unique";
                 $uniqueConstraints[$constraintName] = ['columns' => [$column->getName()]];
             }
         }
 
-        // Add explicit indexes from blueprint
-        $indexes = $this->blueprint->getIndexes();
+        // Add explicit unique indexes from blueprint
         if (!empty($indexes)) {
             foreach ($indexes as $name => $config) {
                 if ($config['unique']) {
