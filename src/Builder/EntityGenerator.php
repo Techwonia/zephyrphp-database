@@ -143,10 +143,14 @@ class EntityGenerator
         }
 
         // Add explicit unique indexes from blueprint
+        // Rename to follow naming convention: tablename_columnname_unique
         if (!empty($indexes)) {
             foreach ($indexes as $name => $config) {
                 if ($config['unique']) {
-                    $uniqueConstraints[$name] = ['columns' => $config['columns']];
+                    // Generate standardized constraint name
+                    $colsStr = implode('_', $config['columns']);
+                    $constraintName = "{$tableName}_{$colsStr}_unique";
+                    $uniqueConstraints[$constraintName] = ['columns' => $config['columns']];
                 }
             }
         }
@@ -162,12 +166,16 @@ class EntityGenerator
         }
 
         // Generate Index attributes (non-unique)
+        // Rename to follow naming convention: tablename_columnname_idx
         if (!empty($indexes)) {
             $indexAttrs = [];
             foreach ($indexes as $name => $config) {
                 if (!$config['unique']) {
+                    // Generate standardized index name
+                    $colsStr = implode('_', $config['columns']);
+                    $indexName = "{$tableName}_{$colsStr}_idx";
                     $cols = "columns: ['" . implode("', '", $config['columns']) . "']";
-                    $indexAttrs[] = "new ORM\\Index(name: '{$name}', {$cols})";
+                    $indexAttrs[] = "new ORM\\Index(name: '{$indexName}', {$cols})";
                 }
             }
             if (!empty($indexAttrs)) {
