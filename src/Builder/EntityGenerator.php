@@ -343,19 +343,37 @@ class EntityGenerator
         $lines[] = '    #[ORM\\' . $relation->getType() . '(' . implode(', ', $attrParts) . ')]';
 
         // JoinColumn for ManyToOne and owning OneToOne
+        // Generate named foreign key constraints for proper error message extraction
+        // Format: tablename_fieldname_fk (industry standard)
         if (in_array($relation->getType(), ['ManyToOne', 'OneToOne']) && $relation->isOwningSide()) {
             $joinCol = $relation->getJoinColumn();
+            $tableName = $this->blueprint->getTable() ?: strtolower($this->blueprint->getName()) . 's';
+
             if ($joinCol) {
-                $joinParts = [
-                    "name: '" . $joinCol['name'] . "'",
-                    "referencedColumnName: '" . $joinCol['referencedColumnName'] . "'",
-                ];
+                $columnName = $joinCol['name'];
+                $referencedColumn = $joinCol['referencedColumnName'];
             } else {
-                $joinParts = [
-                    "name: '" . strtolower($relation->getProperty()) . "_id'",
-                    "referencedColumnName: 'id'",
-                ];
+                $columnName = strtolower($relation->getProperty()) . '_id';
+                $referencedColumn = 'id';
             }
+
+            // Generate named FK constraint: tablename_columnname_fk
+            $fkConstraintName = "{$tableName}_{$columnName}_fk";
+
+            $joinParts = [
+                "name: '{$columnName}'",
+                "referencedColumnName: '{$referencedColumn}'",
+            ];
+
+            // Add onDelete if specified in options
+            $onDelete = $relation->getOption('onDelete');
+            if ($onDelete) {
+                $joinParts[] = "onDelete: '{$onDelete}'";
+            }
+
+            // Add named constraint option for proper error extraction
+            $joinParts[] = "options: ['foreignKeyName' => '{$fkConstraintName}']";
+
             $lines[] = '    #[ORM\\JoinColumn(' . implode(', ', $joinParts) . ')]';
         }
 
