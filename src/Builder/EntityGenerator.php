@@ -113,34 +113,51 @@ class EntityGenerator
 
         // Table attribute
         $tableOptions = [];
-        if ($this->blueprint->getTable()) {
-            $tableOptions[] = "name: '" . $this->blueprint->getTable() . "'";
+        $tableName = $this->blueprint->getTable() ?: strtolower($this->blueprint->getName()) . 's';
+        $tableOptions[] = "name: '{$tableName}'";
+
+        // Collect unique constraints from columns with unique: true
+        // This generates named constraints like 'tablename_columnname_unique'
+        // which is the industry standard and allows proper error message extraction
+        $uniqueConstraints = [];
+        foreach ($this->blueprint->getColumns() as $column) {
+            if ($column->isUnique()) {
+                $constraintName = "{$tableName}_{$column->getName()}_unique";
+                $uniqueConstraints[$constraintName] = ['columns' => [$column->getName()]];
+            }
         }
 
-        // Add indexes
+        // Add explicit indexes from blueprint
         $indexes = $this->blueprint->getIndexes();
+        if (!empty($indexes)) {
+            foreach ($indexes as $name => $config) {
+                if ($config['unique']) {
+                    $uniqueConstraints[$name] = ['columns' => $config['columns']];
+                }
+            }
+        }
+
+        // Generate UniqueConstraint attributes
+        if (!empty($uniqueConstraints)) {
+            $uniqueAttrs = [];
+            foreach ($uniqueConstraints as $name => $config) {
+                $cols = "columns: ['" . implode("', '", $config['columns']) . "']";
+                $uniqueAttrs[] = "new ORM\\UniqueConstraint(name: '{$name}', {$cols})";
+            }
+            $tableOptions[] = 'uniqueConstraints: [' . implode(', ', $uniqueAttrs) . ']';
+        }
+
+        // Generate Index attributes (non-unique)
         if (!empty($indexes)) {
             $indexAttrs = [];
             foreach ($indexes as $name => $config) {
-                $cols = "columns: ['" . implode("', '", $config['columns']) . "']";
-                if ($config['unique']) {
-                    $indexAttrs[] = "new ORM\\UniqueConstraint(name: '{$name}', {$cols})";
-                } else {
+                if (!$config['unique']) {
+                    $cols = "columns: ['" . implode("', '", $config['columns']) . "']";
                     $indexAttrs[] = "new ORM\\Index(name: '{$name}', {$cols})";
                 }
             }
             if (!empty($indexAttrs)) {
-                $hasUnique = array_filter($indexes, fn($i) => $i['unique']);
-                $hasIndex = array_filter($indexes, fn($i) => !$i['unique']);
-
-                if (!empty($hasUnique)) {
-                    $uniqueAttrs = array_filter($indexAttrs, fn($a) => str_contains($a, 'UniqueConstraint'));
-                    $tableOptions[] = 'uniqueConstraints: [' . implode(', ', $uniqueAttrs) . ']';
-                }
-                if (!empty($hasIndex)) {
-                    $idxAttrs = array_filter($indexAttrs, fn($a) => str_contains($a, 'Index('));
-                    $tableOptions[] = 'indexes: [' . implode(', ', $idxAttrs) . ']';
-                }
+                $tableOptions[] = 'indexes: [' . implode(', ', $indexAttrs) . ']';
             }
         }
 
@@ -273,9 +290,9 @@ class EntityGenerator
             $attrParts[] = 'nullable: true';
         }
 
-        if ($column->isUnique()) {
-            $attrParts[] = 'unique: true';
-        }
+        // Note: unique constraints are handled at table level with named constraints
+        // e.g., #[ORM\Table(uniqueConstraints: [new ORM\UniqueConstraint(name: 'tablename_column_unique', columns: ['column'])])]
+        // This allows proper extraction of field names from database error messages
 
         if ($column->getComment()) {
             $attrParts[] = "options: ['comment' => '" . addslashes($column->getComment()) . "']";
