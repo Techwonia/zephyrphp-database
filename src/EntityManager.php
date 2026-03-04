@@ -103,6 +103,24 @@ class EntityManager
         return $this->getEntityManager();
     }
 
+    /**
+     * Add an entity path (for modules to register their models)
+     */
+    public function addPath(string $path): void
+    {
+        if (!in_array($path, $this->config['paths'], true)) {
+            $this->config['paths'][] = $path;
+        }
+
+        // If EntityManager already created, add path to metadata driver directly
+        if ($this->em !== null) {
+            $driver = $this->em->getConfiguration()->getMetadataDriverImpl();
+            if (method_exists($driver, 'addPaths')) {
+                $driver->addPaths([$path]);
+            }
+        }
+    }
+
     public function close(): void
     {
         if ($this->em !== null) {
