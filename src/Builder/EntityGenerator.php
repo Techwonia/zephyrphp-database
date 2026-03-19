@@ -18,10 +18,38 @@ class EntityGenerator
     }
 
     /**
+     * Validate that a name is a safe PHP/SQL identifier
+     */
+    private function validateIdentifier(string $name, string $context = 'identifier'): void
+    {
+        if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
+            throw new \InvalidArgumentException("Invalid {$context}: {$name}");
+        }
+    }
+
+    /**
      * Generate the complete entity PHP code
      */
     public function generate(): string
     {
+        // Validate all identifiers before generating code
+        $this->validateIdentifier($this->blueprint->getName(), 'class name');
+
+        $tableName = $this->blueprint->getTable();
+        if ($tableName !== null) {
+            if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $tableName)) {
+                throw new \InvalidArgumentException("Invalid table name: {$tableName}");
+            }
+        }
+
+        foreach ($this->blueprint->getColumns() as $column) {
+            $this->validateIdentifier($column->getName(), 'column name');
+        }
+
+        foreach ($this->blueprint->getRelations() as $relation) {
+            $this->validateIdentifier($relation->getProperty(), 'relation property');
+        }
+
         $this->uses = [];
         $this->collectUseStatements();
 
@@ -311,7 +339,8 @@ class EntityGenerator
         // This allows proper extraction of field names from database error messages
 
         if ($column->getComment()) {
-            $attrParts[] = "options: ['comment' => '" . addslashes($column->getComment()) . "']";
+            $comment = str_replace(["'", "\\"], ["\\'", "\\\\"], $column->getComment());
+            $attrParts[] = "options: ['comment' => '" . $comment . "']";
         }
 
         $lines[] = '    #[ORM\\Column(' . implode(', ', $attrParts) . ')]';

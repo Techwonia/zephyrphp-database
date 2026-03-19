@@ -757,6 +757,10 @@ class Blueprint
      */
     public function save(string $basePath = null): string
     {
+        if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $this->name)) {
+            throw new \InvalidArgumentException("Invalid class name: {$this->name}");
+        }
+
         $basePath = $basePath ?? (defined('BASE_PATH') ? BASE_PATH : getcwd());
         $path = $basePath . '/app/Models/' . $this->name . '.php';
 

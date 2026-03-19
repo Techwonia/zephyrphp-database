@@ -63,8 +63,8 @@ abstract class Migration
         }
     }
 
-    protected function raw(string $sql): void
+    protected function raw(string $sql, array $params = []): void
     {
-        $this->connection->executeStatement($sql);
+        $this->connection->executeStatement($sql, $params);
     }
 }

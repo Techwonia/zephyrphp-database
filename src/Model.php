@@ -10,6 +10,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\HasLifecycleCallbacks]
 abstract class Model
 {
+    protected array $fillable = [];
+    protected array $guarded = ['id', 'createdAt', 'updatedAt', 'deletedAt'];
+    protected array $hidden = [];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -80,12 +84,16 @@ abstract class Model
             $data[$property->getName()] = $value;
         }
 
+        $data = array_diff_key($data, array_flip($this->hidden));
+
         return $data;
     }
 
     public function fill(array $data): self
     {
         foreach ($data as $key => $value) {
+            if (in_array($key, $this->guarded, true)) continue;
+            if (!empty($this->fillable) && !in_array($key, $this->fillable, true)) continue;
             $setter = 'set' . ucfirst($key);
             if (method_exists($this, $setter)) {
                 $this->$setter($value);
@@ -105,11 +113,17 @@ abstract class Model
         return static::getEntityManager()->find(static::class, $id);
     }
 
-    public static function findAll(): array
+    /**
+     * Find all records with a default safety limit to prevent memory exhaustion.
+     *
+     * @param int|null $limit Maximum rows to return (default 1000, null for unlimited)
+     * @param int $offset Starting offset
+     */
+    public static function findAll(?int $limit = 1000, int $offset = 0): array
     {
         return static::getEntityManager()
             ->getRepository(static::class)
-            ->findAll();
+            ->findBy([], null, $limit, $offset);
     }
 
     public static function findBy(array $criteria, ?array $orderBy = null, ?int $limit = null, ?int $offset = null): array

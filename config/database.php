@@ -28,7 +28,9 @@ return [
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', 3306),
             'database' => env('DB_DATABASE', 'zephyrphp'),
+            // WARNING: Change for production! Never use root with empty password.
             'username' => env('DB_USERNAME', 'root'),
+            // WARNING: Change for production! Never use root with empty password.
             'password' => env('DB_PASSWORD', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
         ],
@@ -38,7 +40,9 @@ return [
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', 5432),
             'database' => env('DB_DATABASE', 'zephyrphp'),
+            // WARNING: Change for production! Never use root with empty password.
             'username' => env('DB_USERNAME', 'root'),
+            // WARNING: Change for production! Never use root with empty password.
             'password' => env('DB_PASSWORD', ''),
             'charset' => env('DB_CHARSET', 'utf8'),
         ],

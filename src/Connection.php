@@ -47,9 +47,25 @@ class Connection
         }
 
         try {
-            $this->connection = DriverManager::getConnection($this->config);
+            $params = $this->config;
+
+            // Add SSL/TLS options if configured
+            if (!empty($_ENV['DB_SSL_CA'])) {
+                $params['driverOptions'][\PDO::MYSQL_ATTR_SSL_CA] = $_ENV['DB_SSL_CA'];
+            }
+            if (!empty($_ENV['DB_SSL_CERT'])) {
+                $params['driverOptions'][\PDO::MYSQL_ATTR_SSL_CERT] = $_ENV['DB_SSL_CERT'];
+            }
+            if (!empty($_ENV['DB_SSL_KEY'])) {
+                $params['driverOptions'][\PDO::MYSQL_ATTR_SSL_KEY] = $_ENV['DB_SSL_KEY'];
+            }
+
+            $this->connection = DriverManager::getConnection($params);
         } catch (Exception $e) {
-            throw new \RuntimeException("Database connection failed: " . $e->getMessage(), 0, $e);
+            // Log without exposing credentials
+            $safeMsg = preg_replace('/password[=:]\s*\S+/i', 'password=***', $e->getMessage());
+            error_log("Database connection failed: " . $safeMsg);
+            throw new \RuntimeException("Database connection failed. Check your configuration.", 0, $e);
         }
 
         return $this->connection;
@@ -81,7 +97,11 @@ class Connection
 
     public function getConfig(): array
     {
-        return $this->config;
+        $safe = $this->config;
+        if (isset($safe['password'])) {
+            $safe['password'] = '***REDACTED***';
+        }
+        return $safe;
     }
 
     public function setConfig(array $config): self

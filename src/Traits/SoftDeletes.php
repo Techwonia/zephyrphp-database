@@ -69,12 +69,15 @@ trait SoftDeletes
     }
 
     /**
-     * Force delete - permanently remove from database
-     * Note: This should be called alongside EntityManager::remove()
+     * Force delete - permanently remove from database.
+     *
+     * This trait cannot perform permanent deletion on its own.
+     * Use EntityManager directly to permanently delete an entity.
+     *
+     * @throws \RuntimeException Always, with instructions on how to permanently delete.
      */
     public function forceDelete(): void
     {
-        // This method is a marker - actual deletion happens via EntityManager
-        // Usage: $entity->forceDelete(); $em->remove($entity); $em->flush();
+        throw new \RuntimeException('Use EntityManager::remove() and EntityManager::flush() to permanently delete.');
     }
 }

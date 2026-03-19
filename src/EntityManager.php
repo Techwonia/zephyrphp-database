@@ -86,7 +86,20 @@ class EntityManager
             cache: $this->config['cache']
         );
 
-        $connection = DriverManager::getConnection($this->config['connection'], $config);
+        $connectionParams = $this->config['connection'];
+
+        // Add SSL/TLS options if configured
+        if (!empty($_ENV['DB_SSL_CA'])) {
+            $connectionParams['driverOptions'][\PDO::MYSQL_ATTR_SSL_CA] = $_ENV['DB_SSL_CA'];
+        }
+        if (!empty($_ENV['DB_SSL_CERT'])) {
+            $connectionParams['driverOptions'][\PDO::MYSQL_ATTR_SSL_CERT] = $_ENV['DB_SSL_CERT'];
+        }
+        if (!empty($_ENV['DB_SSL_KEY'])) {
+            $connectionParams['driverOptions'][\PDO::MYSQL_ATTR_SSL_KEY] = $_ENV['DB_SSL_KEY'];
+        }
+
+        $connection = DriverManager::getConnection($connectionParams, $config);
 
         $this->em = new DoctrineEntityManager($connection, $config);
 
