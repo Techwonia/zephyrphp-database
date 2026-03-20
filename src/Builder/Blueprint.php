@@ -65,14 +65,19 @@ class Blueprint
             $composer = json_decode(file_get_contents($composerFile), true);
             if (isset($composer['autoload']['psr-4'])) {
                 foreach ($composer['autoload']['psr-4'] as $namespace => $path) {
-                    if ($path === 'app/' || $path === 'app') {
+                    $normalizedPath = rtrim($path, '/');
+                    if ($normalizedPath === 'app' || $normalizedPath === 'src') {
                         return rtrim($namespace, '\\') . '\\Models';
                     }
+                }
+                // Fallback: use first PSR-4 namespace
+                foreach ($composer['autoload']['psr-4'] as $namespace => $path) {
+                    return rtrim($namespace, '\\') . '\\Models';
                 }
             }
         }
 
-        return 'App\\Models';
+        return '';
     }
 
     /**
