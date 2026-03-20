@@ -712,7 +712,7 @@ class EntityGenerator
                 $lines[] = "    #[ORM\\{$event}]";
                 $lines[] = "    public function {$method}(): void";
                 $lines[] = '    {';
-                $lines[] = '        // TODO: Implement lifecycle callback';
+                $lines[] = '        // Lifecycle callback';
                 $lines[] = '    }';
                 $lines[] = '';
             }
