@@ -8,6 +8,8 @@ use Doctrine\ORM\EntityManager as DoctrineEntityManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\ORMSetup;
 use Doctrine\DBAL\DriverManager;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 class EntityManager
 {
@@ -69,8 +71,31 @@ class EntityManager
             'paths' => $modelPaths,
             'isDevMode' => ($_ENV['APP_ENV'] ?? $_ENV['ENV'] ?? 'dev') !== 'production',
             'proxyDir' => $basePath . '/storage/proxies',
-            'cache' => null,
+            'cache' => $this->createMetadataCache($basePath),
         ];
+    }
+
+    private function createMetadataCache(string $basePath): ?\Psr\Cache\CacheItemPoolInterface
+    {
+        $isDevMode = ($_ENV['APP_ENV'] ?? $_ENV['ENV'] ?? 'dev') !== 'production';
+
+        // In production, use filesystem cache for Doctrine metadata
+        if (!$isDevMode) {
+            $cacheDir = $basePath . '/storage/cache/doctrine';
+            if (!is_dir($cacheDir)) {
+                @mkdir($cacheDir, 0755, true);
+            }
+            if (class_exists(FilesystemAdapter::class)) {
+                return new FilesystemAdapter('doctrine', 0, $cacheDir);
+            }
+        }
+
+        // In dev mode, use in-memory array cache (still avoids re-scanning within a request)
+        if (class_exists(ArrayAdapter::class)) {
+            return new ArrayAdapter();
+        }
+
+        return null;
     }
 
     public function create(): EntityManagerInterface
