@@ -104,6 +104,28 @@ class Connection
         return $safe;
     }
 
+    /**
+     * Execute a callback within a database transaction.
+     * Automatically commits on success, rolls back on exception.
+     *
+     * @template T
+     * @param callable(): T $callback
+     * @return T
+     */
+    public function transaction(callable $callback): mixed
+    {
+        $conn = $this->getConnection();
+        $conn->beginTransaction();
+        try {
+            $result = $callback($conn);
+            $conn->commit();
+            return $result;
+        } catch (\Throwable $e) {
+            $conn->rollBack();
+            throw $e;
+        }
+    }
+
     public function setConfig(array $config): self
     {
         $this->config = array_merge($this->config, $config);
