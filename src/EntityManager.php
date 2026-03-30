@@ -69,7 +69,7 @@ class EntityManager
                 'charset' => $_ENV['DB_CHARSET'] ?? 'utf8mb4',
             ],
             'paths' => $modelPaths,
-            'isDevMode' => ($_ENV['APP_ENV'] ?? $_ENV['ENV'] ?? 'dev') !== 'production',
+            'isDevMode' => ($_ENV['ENV'] ?? $_ENV['APP_ENV'] ?? 'dev') !== 'production',
             'proxyDir' => $basePath . '/storage/proxies',
             'cache' => $this->createMetadataCache($basePath),
         ];
@@ -77,7 +77,7 @@ class EntityManager
 
     private function createMetadataCache(string $basePath): ?\Psr\Cache\CacheItemPoolInterface
     {
-        $isDevMode = ($_ENV['APP_ENV'] ?? $_ENV['ENV'] ?? 'dev') !== 'production';
+        $isDevMode = ($_ENV['ENV'] ?? $_ENV['APP_ENV'] ?? 'dev') !== 'production';
 
         // In production, use filesystem cache for Doctrine metadata
         if (!$isDevMode) {
