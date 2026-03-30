@@ -46,29 +46,36 @@ class Connection
             return $this->connection;
         }
 
-        try {
-            $params = $this->config;
+        $params = $this->config;
 
-            // Add SSL/TLS options if configured
-            if (!empty($_ENV['DB_SSL_CA'])) {
-                $params['driverOptions'][\PDO::MYSQL_ATTR_SSL_CA] = $_ENV['DB_SSL_CA'];
-            }
-            if (!empty($_ENV['DB_SSL_CERT'])) {
-                $params['driverOptions'][\PDO::MYSQL_ATTR_SSL_CERT] = $_ENV['DB_SSL_CERT'];
-            }
-            if (!empty($_ENV['DB_SSL_KEY'])) {
-                $params['driverOptions'][\PDO::MYSQL_ATTR_SSL_KEY] = $_ENV['DB_SSL_KEY'];
-            }
-
-            $this->connection = DriverManager::getConnection($params);
-        } catch (Exception $e) {
-            // Log without exposing credentials
-            $safeMsg = preg_replace('/password[=:]\s*\S+/i', 'password=***', $e->getMessage());
-            error_log("Database connection failed: " . $safeMsg);
-            throw new \RuntimeException("Database connection failed. Check your configuration.", 0, $e);
+        // Add SSL/TLS options if configured
+        if (!empty($_ENV['DB_SSL_CA'])) {
+            $params['driverOptions'][\PDO::MYSQL_ATTR_SSL_CA] = $_ENV['DB_SSL_CA'];
+        }
+        if (!empty($_ENV['DB_SSL_CERT'])) {
+            $params['driverOptions'][\PDO::MYSQL_ATTR_SSL_CERT] = $_ENV['DB_SSL_CERT'];
+        }
+        if (!empty($_ENV['DB_SSL_KEY'])) {
+            $params['driverOptions'][\PDO::MYSQL_ATTR_SSL_KEY] = $_ENV['DB_SSL_KEY'];
         }
 
-        return $this->connection;
+        $lastException = null;
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            try {
+                $this->connection = DriverManager::getConnection($params);
+                return $this->connection;
+            } catch (Exception $e) {
+                $lastException = $e;
+                if ($attempt === 1) {
+                    usleep(100_000); // 100ms backoff before retry
+                }
+            }
+        }
+
+        // Both attempts failed
+        $safeMsg = preg_replace('/password[=:]\s*\S+/i', 'password=***', $lastException->getMessage());
+        error_log("Database connection failed after 2 attempts: " . $safeMsg);
+        throw new \RuntimeException("Database connection failed. Check your configuration.", 0, $lastException);
     }
 
     public function getConnection(): ?DBALConnection
